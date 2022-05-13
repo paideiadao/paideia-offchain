@@ -1,0 +1,14 @@
+{
+    "name": "im.paideia.staking.incentive",
+    "filterType": "tx",
+    "repeats": -1,
+    "topics": [
+        "im.paideia.staking.incentive"
+    ],
+    "messageTemplate": "%tx%",
+    "filterTree": {
+        "nodeType": "equals",
+        "fieldName": "outputs.0.ergoTree",
+        "comparisonValue": ""
+    }
+}

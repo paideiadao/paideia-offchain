@@ -1,0 +1,14 @@
+{
+    "name": "im.paideia.staking.emission",
+    "filterType": "tx",
+    "repeats": -1,
+    "topics": [
+        "im.paideia.staking.emission"
+    ],
+    "messageTemplate": "%tx%",
+    "filterTree": {
+        "nodeType": "equals",
+        "fieldName": "outputs.0.assets.0.tokenId",
+        "comparisonValue": ""
+    }
+}

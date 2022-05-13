@@ -1,0 +1,14 @@
+{
+    "name": "im.paideia.staking.proxy",
+    "filterType": "tx",
+    "repeats": -1,
+    "topics": [
+        "im.paideia.staking.proxy"
+    ],
+    "messageTemplate": "%tx%",
+    "filterTree": {
+        "nodeType": "or",
+        "childNodes": [
+        ]
+    }
+}

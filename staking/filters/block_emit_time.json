@@ -1,0 +1,14 @@
+{
+    "name": "im.paideia.staking.emit_time",
+    "filterType": "block",
+    "repeats": -1,
+    "topics": [
+        "im.paideia.staking.emit_time"
+    ],
+    "messageTemplate": "%block%",
+    "filterTree": {
+        "nodeType": "gt",
+        "fieldName": "timestamp",
+        "comparisonValue": 0
+    }
+}
