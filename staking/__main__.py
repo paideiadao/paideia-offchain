@@ -1,4 +1,5 @@
 import asyncio
+from distutils import extension
 import json
 from pydoc import text
 import sys
@@ -11,6 +12,11 @@ import threading
 
 from staking.StakingState import StakingState
 from paideia_contracts.contracts.staking import StakingConfig, PaideiaTestConfig
+import java
+from org.ergoplatform.appkit import UnsignedTransaction, SignedTransaction
+from org.ergoplatform.appkit.impl import BlockchainContextImpl
+from java.lang.reflect import UndeclaredThrowableException
+from jpype import JImplements, JOverride
 
 levelname = logging.DEBUG
 logging.basicConfig(format='{asctime}:{name:>8s}:{levelname:<8s}::{message}', style='{', level=levelname)
@@ -160,6 +166,28 @@ async def setTimeFilter(stakingState: StakingState):
     block_time_filter["filterTree"]["comparisonValue"] = stakingState.nextCycleTime()
     res = requests.post('http://eo-api:8901/api/filter', json=block_time_filter)
 
+@JImplements(java.util.function.Function)
+class SignedTxFromJsonExecutor(object):
+
+    def __init__(self, signedTxJson: str):
+        self._signedTxJson = signedTxJson
+
+    @JOverride
+    def apply(self, ctx: BlockchainContextImpl) -> SignedTransaction:
+        return ctx.signedTxFromJson(self._signedTxJson)
+
+def signedTxFromJson(appKit: ErgoAppKit, signedTxJson: str) -> SignedTransaction:
+    return appKit._ergoClient.execute(SignedTxFromJsonExecutor(signedTxJson))
+
+def dummySign(unsignedJson):
+    signedInputs = []
+    for inp in unsignedJson["inputs"]:
+        signedInputs.append(
+            {"boxId": inp["boxId"], "spendingProof": {"proofBytes": "", "extension": {}}}
+        )
+    unsignedJson["inputs"] = signedInputs
+    return unsignedJson
+
 async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, producer: KafkaProducer):
     unsignedTx = None
     txType = ""
@@ -167,7 +195,6 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
         unsignedTx = stakingState.emitTransaction(appKit,config['REWARD_ADDRESS'])
         if unsignedTx is not None:
             txType = "im.paideia.staking.emit"
-            logging.info("Submitting emit tx")
     except Exception as e:
         logging.error(e)
     if unsignedTx is None:
@@ -175,16 +202,13 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
             unsignedTx = stakingState.compoundTX(appKit,config['REWARD_ADDRESS'])
             if unsignedTx is not None:
                 txType = "im.paideia.staking.compound"
-                logging.info("Submitting compound tx")
         except Exception as e:
             pass#logging.error(e)
     if unsignedTx is None:
         try:
-            (txType, unsignedTx) = stakingState.proxyTransaction(appKit,config['REWARD_ADDRESS'])
-            if unsignedTx is not None:
-                logging.info(f"Submitting {txType} tx")
+            (txType, unsignedTx) = stakingState.proxyTransaction(appKit,config['REWARD_ADDRESS']) 
         except Exception as e:
-            pass#logging.error(e)
+            logging.error(e)
     # if unsignedTx is None:
     #     try:
     #         unsignedTx = stakingState.consolidateTransaction(appKit,config['REWARD_ADDRESS'])
@@ -195,11 +219,15 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
     #         pass#logging.error(e)
     if unsignedTx is not None:
         try:
-            signedTx = appKit.signTransaction(unsignedTx)
-            signedTxJson = json.loads(signedTx.toJson(False))
+            if txType == "im.paideia.staking.proxy.add":
+                signedTxJson = dummySign(ErgoAppKit.unsignedTxToJson(unsignedTx))
+            else:
+                signedTx = appKit.signTransaction(unsignedTx)
+                signedTxJson = json.loads(signedTx.toJson(False))
+                stakingState.newTx(signedTxJson)
             txInfo = {'type': txType, 'tx': signedTxJson}
             producer.send('ergo.submit_tx',value=txInfo)
-            stakingState.newTx(json.loads(signedTx.toJson(False)))
+            logging.info(f"Submitting {txType} tx")
         except Exception as e:
             logging.error(e)
 
@@ -230,6 +258,7 @@ async def main():
             logging.error(e)
             return
         stakingState = await currentStakingState(config,stakingConfig)
+        logging.info(stakingState._stakeBoxes)
         logging.info(stakingState)
         consumer = KafkaConsumer(*topics,group_id='im.paideia.staking',bootstrap_servers=f"{config['KAFKA_HOST']}:{config['KAFKA_PORT']}",value_deserializer=lambda m: json.loads(m.decode('utf-8')))
         producer = None
@@ -241,11 +270,10 @@ async def main():
         await makeTx(appKit,stakingState,config,producer)
         for message in consumer:
             logging.info(message.topic)
+            logging.info(message.value)
             if message.topic == "im.paideia.staking.proxy":
                 tx = message.value
                 stakingState.newTx(tx)
-                if "globalIndex" in tx:
-                    stakingState.addProxyBox(tx["outputs"][0])
             if message.topic == "im.paideia.staking.mempoolcheck":
                 logging.info("Checking mempool")
                 stakingState.mempool.validateMempool(config['ERGO_NODE'])

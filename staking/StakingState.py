@@ -29,10 +29,10 @@ class StakingState:
     def addStakeBox(self, stakeBox) -> bool:
         mempool = "settlementHeight" not in stakeBox
         if not mempool:
-            if stakeBox["additionalRegisters"]["R5"]["serializedValue"] in self._stakeBoxes:
-                if stakeBox["settlementHeight"] <= self._stakeBoxes[stakeBox["additionalRegisters"]["R5"]["serializedValue"]]["settlementHeight"]:
+            if stakeBox["additionalRegisters"]["R5"]["renderedValue"] in self._stakeBoxes:
+                if stakeBox["settlementHeight"] <= self._stakeBoxes[stakeBox["additionalRegisters"]["R5"]["renderedValue"]]["settlementHeight"]:
                     return False
-            self._stakeBoxes[stakeBox["additionalRegisters"]["R5"]["serializedValue"]] = stakeBox
+            self._stakeBoxes[stakeBox["additionalRegisters"]["R5"]["renderedValue"]] = stakeBox
             return True
         else:
             False
@@ -78,7 +78,7 @@ class StakingState:
         self._proxyBoxes.pop(proxyBoxId,None)
 
     def getProxyBox(self, proxyTree: str):
-        proxyBoxList = list(list(self._proxyBoxes.values()) + self.mempool.getUTXOsByTree(proxyTree))
+        proxyBoxList = list(self._proxyBoxes.values()) + self.mempool.getUTXOsByTree(proxyTree)
         for box in proxyBoxList:
             if not self.mempool.isSpent(box["boxId"]) and box["ergoTree"] == proxyTree:
                 return box
@@ -125,7 +125,7 @@ class StakingState:
                 #logging.info("Remaining stakers: 0")
                 return
 
-            for box in self._stakeBoxes.values():
+            for box in self.mempool.getUTXOsByTree(self.stakingConfig.stakeContract._ergoTree.bytesHex()) + list(self._stakeBoxes.values()):
                 boxR4 = self.getR4(box)
                 if boxR4.apply(0) == emissionR4.apply(1) and not self.mempool.isSpent(box["boxId"]):
                     # calc rewards and build tx
@@ -145,8 +145,6 @@ class StakingState:
             emissionInput = appKit.getBoxesById([self.emission["boxId"]])[0]
             stakeInputs = appKit.getBoxesById(stakeBoxes)
             incentiveInput = appKit.getBoxesById([incentiveBox["boxId"]])[0]
-
-            logging.info(ErgoAppKit.unsignedTxToJson(CompoundTransaction(emissionInput,stakeInputs,incentiveInput,self.stakingConfig,rewardAddress).unsignedTx))
 
             return CompoundTransaction(emissionInput,stakeInputs,incentiveInput,self.stakingConfig,rewardAddress).unsignedTx
 
@@ -185,53 +183,54 @@ class StakingState:
             return ("im.paideia.staking.proxy.new",StakeTransaction(stakeStateInput,stakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
         proxy = self.getProxyBox(self.stakingConfig.addStakeProxyContract._ergoTree.bytesHex())
         if proxy is not None:
-            stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])
+            stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
             addStakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
-            stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(addStakeProxyInput.getTokens()[0].getId().toString())])
-            return ("im.paideia.staking.proxy.add",AddStakeTransaction(stakeStateInput,stakeInput,addStakeProxyInput,self.stakingConfig,rewardAddress))
+            stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(addStakeProxyInput.getTokens()[0].getId().toString())["boxId"]])[0]
+            addStakeProxyTx = AddStakeTransaction(stakeStateInput,stakeInput,addStakeProxyInput,self.stakingConfig,rewardAddress)
+            return ("im.paideia.staking.proxy.add",addStakeProxyTx.unsignedTx)
         proxy = self.getProxyBox(self.stakingConfig.unstakeProxyContract._ergoTree.bytesHex())
         if proxy is not None:
-            stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])
+            stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
             unstakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
-            stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(unstakeProxyInput.getTokens()[0].getId().toString())])
-            return ("im.paideia.staking.proxy.remove",UnstakeTransaction(stakeStateInput,stakeInput,unstakeProxyInput,self.stakingConfig,rewardAddress))
+            stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(unstakeProxyInput.getTokens()[0].getId().toString())["boxId"]])[0]
+            return ("im.paideia.staking.proxy.remove",UnstakeTransaction(stakeStateInput,stakeInput,unstakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
         return (None, None)
 
-    # def consolidateTransaction(self, appKit: ErgoAppKit, rewardAddres: str):
-    #     dustBoxes = []
-    #     dustTotal = 0
-    #     for box in list(self._incentiveBoxes.values()) + self.mempool.getUTXOsByTree(incentiveTree):
-    #         if box["boxId"] not in dustBoxes and box["value"] < 10000000 and not self.mempool.isSpent(box["boxId"]):
-    #             dustBoxes.append(box["boxId"])
-    #             dustTotal += box["value"]
+    def consolidateTransaction(self, appKit: ErgoAppKit, rewardAddres: str):
+        dustBoxes = []
+        dustTotal = 0
+        for box in list(self._incentiveBoxes.values()) + self.mempool.getUTXOsByTree(self.stakingConfig.stakingIncentiveContract._ergoTree.bytesHex()):
+            if box["boxId"] not in dustBoxes and box["value"] < 10000000 and not self.mempool.isSpent(box["boxId"]):
+                dustBoxes.append(box["boxId"])
+                dustTotal += box["value"]
 
-    #     if len(dustBoxes) >= 2:
-    #         logging.info(len(dustBoxes))
-    #         inputs = appKit.getBoxesById(dustBoxes)
+        if len(dustBoxes) >= 2:
+            logging.info(len(dustBoxes))
+            inputs = appKit.getBoxesById(dustBoxes)
 
-    #         incentiveOutput = appKit.buildOutBox(
-    #             value=dustTotal-int(1e6)-int(5e5*len(dustBoxes)),
-    #             tokens=None,
-    #             registers=None,
-    #             contract=appKit.contractFromAddress(incentiveAddress)
-    #         )         
+            incentiveOutput = appKit.buildOutBox(
+                value=dustTotal-int(1e6)-int(5e5*len(dustBoxes)),
+                tokens=None,
+                registers=None,
+                contract=appKit.contractFromAddress(incentiveAddress)
+            )         
 
-    #         rewardOutput = appKit.buildOutBox(
-    #             value=int(5e5*len(dustBoxes)),
-    #             tokens=None,
-    #             registers=None,
-    #             contract=appKit.contractFromAddress(rewardAddres)
-    #         )
+            rewardOutput = appKit.buildOutBox(
+                value=int(5e5*len(dustBoxes)),
+                tokens=None,
+                registers=None,
+                contract=appKit.contractFromAddress(rewardAddres)
+            )
 
-    #         unsignedTx = appKit.buildUnsignedTransaction(
-    #             inputs=inputs,
-    #             outputs=[incentiveOutput,rewardOutput],
-    #             fee=int(1e6),
-    #             sendChangeTo=Address.create(rewardAddres).getErgoAddress(),
-    #             preHeader=appKit.preHeader()
-    #         )
+            unsignedTx = appKit.buildUnsignedTransaction(
+                inputs=inputs,
+                outputs=[incentiveOutput,rewardOutput],
+                fee=int(1e6),
+                sendChangeTo=Address.create(rewardAddres).getErgoAddress(),
+                preHeader=appKit.preHeader()
+            )
 
-    #         return unsignedTx
+            return unsignedTx
 
     @property
     def stakeState(self):
@@ -241,7 +240,7 @@ class StakingState:
     
     @stakeState.setter
     def stakeState(self, value):
-        if "settlementHeight" in value:
+        if "settlementHeight" in value and value["spentTransactionId"] is None:
             self._stakeState = value
 
     @property
@@ -252,7 +251,7 @@ class StakingState:
     
     @emission.setter
     def emission(self, value):
-        if "settlementHeight" in value:
+        if "settlementHeight" in value and value["spentTransactionId"] is None:
             self._emission = value
 
     @property
@@ -263,7 +262,7 @@ class StakingState:
     
     @stakePool.setter
     def stakePool(self, value):
-        if "settlementHeight" in value:
+        if "settlementHeight" in value and value["spentTransactionId"] is None:
             self._stakePool = value
 
     @property

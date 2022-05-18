@@ -49,7 +49,7 @@ class Mempool:
             if not self.isSpent(boxId):
                 box = list(self._outputs[boxId].values())[0]
                 for asset in box["assets"]:
-                    if asset["tokenId"] == tokenId:
+                    if asset["tokenId"] == tokenId and asset["amount"] == 1:
                         logging.info("found box in mempool")
                         self._utxoTokenIdCache[tokenId] = box
                         return box
