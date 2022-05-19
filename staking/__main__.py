@@ -209,14 +209,14 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
             (txType, unsignedTx) = stakingState.proxyTransaction(appKit,config['REWARD_ADDRESS']) 
         except Exception as e:
             logging.error(e)
-    # if unsignedTx is None:
-    #     try:
-    #         unsignedTx = stakingState.consolidateTransaction(appKit,config['REWARD_ADDRESS'])
-    #         if unsignedTx is not None:
-    #             txType = "im.paideia.staking.consolidate"
-    #             logging.info("Submitting consolidate tx")
-    #     except Exception as e:
-    #         pass#logging.error(e)
+    if unsignedTx is None:
+        try:
+            unsignedTx = stakingState.consolidateTransaction(appKit,config['REWARD_ADDRESS'])
+            if unsignedTx is not None:
+                txType = "im.paideia.staking.consolidate"
+                logging.info("Submitting consolidate tx")
+        except Exception as e:
+            logging.error(e)
     if unsignedTx is not None:
         try:
             if txType == "im.paideia.staking.proxy.add":

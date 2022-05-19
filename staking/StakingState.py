@@ -2,9 +2,9 @@ from time import time
 from typing import List
 import logging
 from utils.Mempool import Mempool
-from ergo_python_appkit.appkit import ErgoAppKit, ErgoValueT
-from org.ergoplatform.appkit import Address, ErgoValue, OutBox
-from paideia_contracts.contracts.staking import AddStakeTransaction, AddStakeProxyBox, StakingConfig, CompoundTransaction, EmitTransaction, StakeTransaction, UnstakeTransaction
+from ergo_python_appkit.appkit import ErgoAppKit
+from org.ergoplatform.appkit import ErgoValue
+from paideia_contracts.contracts.staking import AddStakeTransaction, StakingConfig, CompoundTransaction, EmitTransaction, StakeTransaction, UnstakeTransaction, ConsolidateDustTransaction
 
 class StakingState:
     def __init__(self, stakingConfig: StakingConfig) -> None:
@@ -208,29 +208,13 @@ class StakingState:
             logging.info(len(dustBoxes))
             inputs = appKit.getBoxesById(dustBoxes)
 
-            incentiveOutput = appKit.buildOutBox(
-                value=dustTotal-int(1e6)-int(5e5*len(dustBoxes)),
-                tokens=None,
-                registers=None,
-                contract=appKit.contractFromAddress(incentiveAddress)
-            )         
-
-            rewardOutput = appKit.buildOutBox(
-                value=int(5e5*len(dustBoxes)),
-                tokens=None,
-                registers=None,
-                contract=appKit.contractFromAddress(rewardAddres)
+            consolidationTx = ConsolidateDustTransaction(
+                inputs,
+                self.stakingConfig,
+                rewardAddres
             )
 
-            unsignedTx = appKit.buildUnsignedTransaction(
-                inputs=inputs,
-                outputs=[incentiveOutput,rewardOutput],
-                fee=int(1e6),
-                sendChangeTo=Address.create(rewardAddres).getErgoAddress(),
-                preHeader=appKit.preHeader()
-            )
-
-            return unsignedTx
+            return consolidationTx.unsignedTx
 
     @property
     def stakeState(self):
