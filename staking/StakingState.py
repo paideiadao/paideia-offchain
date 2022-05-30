@@ -47,7 +47,7 @@ class StakingState:
 
     def addIncentiveBox(self, incentiveBox) -> bool:
         mempool = "settlementHeight" not in incentiveBox
-        if not mempool:
+        if not mempool and incentiveBox["spentTransactionId"] is None:
             self._incentiveBoxes[incentiveBox["boxId"]] = incentiveBox
             return True
         return False
