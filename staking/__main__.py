@@ -180,12 +180,13 @@ def signedTxFromJson(appKit: ErgoAppKit, signedTxJson: str) -> SignedTransaction
     return appKit._ergoClient.execute(SignedTxFromJsonExecutor(signedTxJson))
 
 def dummySign(unsignedJson):
-    signedInputs = []
     for inp in unsignedJson["inputs"]:
-        signedInputs.append(
-            {"boxId": inp["boxId"], "spendingProof": {"proofBytes": "", "extension": {}}}
-        )
-    unsignedJson["inputs"] = signedInputs
+        inp["spendingProof"] = {"proofBytes": "", "extension": {}}
+    for outp in unsignedJson["outputs"]:
+        outp["value"] = int(outp["value"])
+        if "assets" in outp:
+            for asset in outp["assets"]:
+                asset["amount"] = int(asset["amount"])
     return unsignedJson
 
 async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, producer: KafkaProducer):
