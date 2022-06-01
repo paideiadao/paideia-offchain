@@ -3,8 +3,12 @@ from typing import List
 import logging
 from utils.Mempool import Mempool
 from ergo_python_appkit.appkit import ErgoAppKit
+from ergo_python_appkit.ErgoTransaction import ErgoTransaction
+from ergo_python_appkit.ErgoBox import ErgoBox
 from org.ergoplatform.appkit import ErgoValue
 from paideia_contracts.contracts.staking import AddStakeTransaction, StakingConfig, CompoundTransaction, EmitTransaction, StakeTransaction, UnstakeTransaction, ConsolidateDustTransaction
+
+import java.lang.IllegalArgumentException
 
 class StakingState:
     def __init__(self, stakingConfig: StakingConfig) -> None:
@@ -193,7 +197,23 @@ class StakingState:
             stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
             unstakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
             stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(unstakeProxyInput.getTokens()[0].getId().toString())["boxId"]])[0]
-            return ("im.paideia.staking.proxy.remove",UnstakeTransaction(stakeStateInput,stakeInput,unstakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
+            try:
+                return ("im.paideia.staking.proxy.remove",UnstakeTransaction(stakeStateInput,stakeInput,unstakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
+            except java.lang.IllegalArgumentException:
+                logging.info(proxy)
+                userOutput = ErgoBox(
+                    appKit = appKit,
+                    value = unstakeProxyInput.getValue()-int(1e6),
+                    contract = appKit.contractFromTree(appKit.treeFromBytes(bytes.fromhex(self.getRegisterHex(proxy,"R5")))),
+                    tokens={unstakeProxyInput.getTokens()[0].getId().toString(): 1}
+                ).outBox
+                tx = ErgoTransaction(appKit)
+                tx.inputs = [unstakeProxyInput]
+                tx.outputs = [userOutput]
+                tx.fee = int(1e6)
+                tx.changeAddress = rewardAddress
+                return ("im.paideia.staking.proxy.refund",tx.unsignedTx)
+
         return (None, None)
 
     def consolidateTransaction(self, appKit: ErgoAppKit, rewardAddres: str):
