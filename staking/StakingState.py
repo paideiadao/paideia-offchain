@@ -161,7 +161,6 @@ class StakingState:
             emissionR4 = self.getR4(self.emission)
             if emissionR4.apply(2) > 0:
                 raise Exception("Previous emit not finished yet")
-
             return EmitTransaction(stakeStateInput,stakePoolInput,emissionInput,incentiveInput,self.stakingConfig,rewardAddress).unsignedTx
 
     def getStakeBoxByKey(self, stakeKey: str):
@@ -187,6 +186,7 @@ class StakingState:
             addStakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
             stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(addStakeProxyInput.getTokens()[0].getId().toString())["boxId"]])[0]
             addStakeProxyTx = AddStakeTransaction(stakeStateInput,stakeInput,addStakeProxyInput,self.stakingConfig,rewardAddress)
+            logging.info(addStakeProxyTx.eip12)
             return ("im.paideia.staking.proxy.add",addStakeProxyTx.unsignedTx)
         proxy = self.getProxyBox(self.stakingConfig.unstakeProxyContract._ergoTree.bytesHex())
         if proxy is not None:

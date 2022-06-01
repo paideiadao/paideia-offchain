@@ -220,7 +220,7 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
             logging.error(e)
     if unsignedTx is not None:
         try:
-            if txType == "im.paideia.staking.proxy.add":
+            if txType in ["im.paideia.staking.proxy.add","im.paideia.staking.emit","im.paideia.staking.compound"]:
                 signedTxJson = dummySign(ErgoAppKit.unsignedTxToJson(unsignedTx))
             else:
                 signedTx = appKit.signTransaction(unsignedTx)
@@ -251,7 +251,7 @@ async def main():
         config = await getConfig()
         threading.Thread(target=asyncio.run, args=(checkMempool(config),)).start()
         appKit = ErgoAppKit(config['ERGO_NODE'],'mainnet',config['ERGO_EXPLORER'])
-        logging.info("gmmmm")
+
         stakingConfig = PaideiaTestConfig(appKit)
         try:
             topics = await initiateFilters(stakingConfig)
