@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 RUN apt-get update \
-  && apt-get -y install openjdk-11-jdk git g++ \
+  && apt-get -y install openjdk-17-jdk git g++ \
   && apt-get clean
 
 # install python dependencies

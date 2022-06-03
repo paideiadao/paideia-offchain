@@ -11,7 +11,7 @@ from kafka import KafkaConsumer, KafkaProducer
 import threading
 
 from staking.StakingState import StakingState
-from paideia_contracts.contracts.staking import StakingConfig, PaideiaTestConfig
+from paideia_contracts.contracts.staking import StakingConfig, PaideiaConfig
 import java
 from org.ergoplatform.appkit import UnsignedTransaction, SignedTransaction
 from org.ergoplatform.appkit.impl import BlockchainContextImpl
@@ -220,7 +220,7 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
             logging.error(e)
     if unsignedTx is not None:
         try:
-            if txType in ["im.paideia.staking.proxy.add","im.paideia.staking.emit","im.paideia.staking.compound"]:
+            if txType in ["im.paideia.staking.emit","im.paideia.staking.compound","im.paideia.staking.proxy.add"]:
                 signedTxJson = dummySign(ErgoAppKit.unsignedTxToJson(unsignedTx))
             else:
                 signedTx = appKit.signTransaction(unsignedTx)
@@ -252,7 +252,7 @@ async def main():
         threading.Thread(target=asyncio.run, args=(checkMempool(config),)).start()
         appKit = ErgoAppKit(config['ERGO_NODE'],'mainnet',config['ERGO_EXPLORER'])
 
-        stakingConfig = PaideiaTestConfig(appKit)
+        stakingConfig = PaideiaConfig(appKit)
         try:
             topics = await initiateFilters(stakingConfig)
         except Exception as e:
