@@ -75,6 +75,19 @@ async def initiateFilters(stakingConfig: StakingConfig):
     if res.ok:
         logging.info(res.json())
         topics = topics + proxy_filter['topics']
+
+    with open('staking/filters/tx_refund.json') as f:
+        refund_filter = json.loads(f.read())
+        stakeProxyRefundFilter = {'nodeType': 'equals','fieldName': 'inputs.0.address','comparisonValue': stakingConfig.stakeProxyContract.contract.toAddress().toString()}
+        refund_filter["filterTree"]["childNodes"].append(stakeProxyRefundFilter)
+        addStakeProxyRefundFilter = {'nodeType': 'equals','fieldName': 'inputs.0.address','comparisonValue': stakingConfig.addStakeProxyContract.contract.toAddress().toString()}
+        refund_filter["filterTree"]["childNodes"].append(addStakeProxyRefundFilter)
+        unstakeProxyRefundFilter = {'nodeType': 'equals','fieldName': 'inputs.0.address','comparisonValue': stakingConfig.unstakeProxyContract.contract.toAddress().toString()}
+        refund_filter["filterTree"]["childNodes"].append(unstakeProxyRefundFilter)
+    res = requests.post('http://eo-api:8901/api/filter', json=refund_filter)
+    if res.ok:
+        logging.info(res.json())
+        topics = topics + refund_filter['topics']
     
     return topics
 
@@ -230,6 +243,7 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
             producer.send('ergo.submit_tx',value=txInfo)
             logging.info(f"Submitting {txType} tx")
         except Exception as e:
+            logging.info(ErgoAppKit.unsignedTxToJson(unsignedTx))
             logging.error(e)
 
 async def checkMempool(config):
@@ -272,6 +286,9 @@ async def main():
         for message in consumer:
             logging.info(message.topic)
             logging.info(message.value)
+            if message.topic == "im.paideia.staking.refund":
+                tx = message.value
+                stakingState.newTx(tx)
             if message.topic == "im.paideia.staking.proxy":
                 tx = message.value
                 stakingState.newTx(tx)

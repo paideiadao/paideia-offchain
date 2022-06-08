@@ -83,9 +83,11 @@ class StakingState:
 
     def getProxyBox(self, proxyTree: str):
         proxyBoxList = list(self._proxyBoxes.values()) + self.mempool.getUTXOsByTree(proxyTree)
-        for box in proxyBoxList:
-            if not self.mempool.isSpent(box["boxId"]) and box["ergoTree"] == proxyTree:
-                return box
+        if proxyBoxList is not None:
+            proxyBoxList.reverse()
+            for box in proxyBoxList:
+                if not self.mempool.isSpent(box["boxId"]) and box["ergoTree"] == proxyTree:
+                    return box
     
     def getProxyBoxById(self, boxId):
         box = self.mempool.getBoxById(boxId)
@@ -183,6 +185,19 @@ class StakingState:
         if proxy is not None:
             stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
             stakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
+            if self.getR4(proxy).apply(0)<time()*1000:
+                userOutput = ErgoBox(
+                    appKit = appKit,
+                    value = stakeProxyInput.getValue()-int(1e6),
+                    contract = appKit.contractFromTree(appKit.treeFromBytes(bytes.fromhex(self.getRegisterHex(proxy,"R5")))),
+                    tokens={stakeProxyInput.getTokens()[0].getId().toString(): stakeProxyInput.getTokens()[0].getValue()}
+                ).outBox
+                tx = ErgoTransaction(appKit)
+                tx.inputs = [stakeProxyInput]
+                tx.outputs = [userOutput]
+                tx.fee = int(1e6)
+                tx.changeAddress = rewardAddress
+                return ("im.paideia.staking.proxy.refund",tx.unsignedTx)
             return ("im.paideia.staking.proxy.new",StakeTransaction(stakeStateInput,stakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
         proxy = self.getProxyBox(self.stakingConfig.addStakeProxyContract._ergoTree.bytesHex())
         if proxy is not None:
@@ -197,6 +212,21 @@ class StakingState:
             stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
             unstakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
             stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(unstakeProxyInput.getTokens()[0].getId().toString())["boxId"]])[0]
+            remaining = stakeInput.getTokens()[1].getValue()-unstakeProxyInput.getRegisters()[0].getValue().apply(0)
+            if remaining > 0 and remaining < 1000:
+                logging.info(proxy)
+                userOutput = ErgoBox(
+                    appKit = appKit,
+                    value = unstakeProxyInput.getValue()-int(1e6),
+                    contract = appKit.contractFromTree(appKit.treeFromBytes(bytes.fromhex(self.getRegisterHex(proxy,"R5")))),
+                    tokens={unstakeProxyInput.getTokens()[0].getId().toString(): 1}
+                ).outBox
+                tx = ErgoTransaction(appKit)
+                tx.inputs = [unstakeProxyInput]
+                tx.outputs = [userOutput]
+                tx.fee = int(1e6)
+                tx.changeAddress = rewardAddress
+                return ("im.paideia.staking.proxy.refund",tx.unsignedTx)
             try:
                 return ("im.paideia.staking.proxy.remove",UnstakeTransaction(stakeStateInput,stakeInput,unstakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
             except java.lang.IllegalArgumentException:
