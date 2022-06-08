@@ -185,7 +185,7 @@ class StakingState:
         if proxy is not None:
             stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
             stakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
-            if self.getR4(proxy).apply(0)<time()*1000:
+            if self.getR4(proxy).apply(0)<(time()+1800)*1000:
                 userOutput = ErgoBox(
                     appKit = appKit,
                     value = stakeProxyInput.getValue()-int(1e6),
