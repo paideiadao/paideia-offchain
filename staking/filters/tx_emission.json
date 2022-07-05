@@ -1,9 +1,9 @@
 {
-    "name": "im.paideia.staking.emission",
+    "name": ".staking.emission",
     "filterType": "tx",
     "repeats": -1,
     "topics": [
-        "im.paideia.staking.emission"
+        ".staking.emission"
     ],
     "messageTemplate": "%tx%",
     "filterTree": {

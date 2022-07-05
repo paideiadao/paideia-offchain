@@ -1,9 +1,9 @@
 {
-    "name": "im.paideia.staking.refund",
+    "name": ".staking.refund",
     "filterType": "tx",
     "repeats": -1,
     "topics": [
-        "im.paideia.staking.refund"
+        ".staking.refund"
     ],
     "messageTemplate": "%tx%",
     "filterTree": {

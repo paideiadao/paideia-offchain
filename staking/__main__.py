@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from distutils import extension
 import json
 from pydoc import text
@@ -9,9 +10,10 @@ import logging
 import requests
 from kafka import KafkaConsumer, KafkaProducer
 import threading
+import os
 
 from staking.StakingState import StakingState
-from paideia_contracts.contracts.staking import StakingConfig, PaideiaConfig
+from paideia_contracts.contracts.staking import StakingConfig, PaideiaConfig, EGIOConfig
 import java
 from org.ergoplatform.appkit import UnsignedTransaction, SignedTransaction
 from org.ergoplatform.appkit.impl import BlockchainContextImpl
@@ -29,20 +31,31 @@ logger.setLevel(logging.WARN)
 
 producer: KafkaProducer = None
 
+project = os.getenv("PROJECT")
+
+stakingConfigs = {
+    'im.paideia': PaideiaConfig,
+    'io.ergogames': EGIOConfig
+}
+
 async def getConfig():
+    logging.info("Retrieving config...")
     configResult = requests.get("http://eo-api:8901/api/config")
 
     return configResult.json()
 
 async def initiateFilters(stakingConfig: StakingConfig):
-    topics = ['im.paideia.staking.emit_time','im.paideia.staking.mempoolcheck']
+    logging.info("Initiating filters...")
+    topics = [f'{project}.staking.emit_time',f'{project}.staking.mempoolcheck']
 
     with open('staking/filters/tx_stake_state.json') as f:
         stake_state_filter = json.loads(f.read())
         stake_state_filter["filterTree"]["comparisonValue"] = stakingConfig.stakeStateNFT
+        stake_state_filter["name"] = project + stake_state_filter["name"]
+        stake_state_filter["topics"][0] = project + stake_state_filter["topics"][0]
     res = requests.post('http://eo-api:8901/api/filter', json=stake_state_filter)
     if res.ok:
-        logging.info(res.json())
+        logging.debug(res.json())
         topics = topics + stake_state_filter['topics']
     else:
         logging.error(res.content)
@@ -50,17 +63,21 @@ async def initiateFilters(stakingConfig: StakingConfig):
     with open('staking/filters/tx_emission.json') as f:
         emission_filter = json.loads(f.read())
         emission_filter["filterTree"]["comparisonValue"] = stakingConfig.emissionNFT
+        emission_filter["name"] = project + emission_filter["name"]
+        emission_filter["topics"][0] = project + emission_filter["topics"][0]
     res = requests.post('http://eo-api:8901/api/filter', json=emission_filter)
     if res.ok:
-        logging.info(res.json())
+        logging.debug(res.json())
         topics = topics + emission_filter['topics']
 
     with open('staking/filters/tx_incentive.json') as f:
         incentive_filter = json.loads(f.read())
         incentive_filter["filterTree"]["comparisonValue"] = stakingConfig.stakingIncentiveContract._ergoTree.bytesHex()
+        incentive_filter["name"] = project + incentive_filter["name"]
+        incentive_filter["topics"][0] = project + incentive_filter["topics"][0]
     res = requests.post('http://eo-api:8901/api/filter', json=incentive_filter)
     if res.ok:
-        logging.info(res.json())
+        logging.debug(res.json())
         topics = topics + incentive_filter['topics']
 
     with open('staking/filters/tx_proxy.json') as f:
@@ -71,9 +88,11 @@ async def initiateFilters(stakingConfig: StakingConfig):
         proxy_filter["filterTree"]["childNodes"].append(addStakeProxyFilter)
         unstakeProxyFilter = {'nodeType': 'equals','fieldName': 'outputs.0.ergoTree','comparisonValue': stakingConfig.unstakeProxyContract._ergoTree.bytesHex()}
         proxy_filter["filterTree"]["childNodes"].append(unstakeProxyFilter)
+        proxy_filter["name"] = project + proxy_filter["name"]
+        proxy_filter["topics"][0] = project + proxy_filter["topics"][0]
     res = requests.post('http://eo-api:8901/api/filter', json=proxy_filter)
     if res.ok:
-        logging.info(res.json())
+        logging.debug(res.json())
         topics = topics + proxy_filter['topics']
 
     with open('staking/filters/tx_refund.json') as f:
@@ -84,31 +103,38 @@ async def initiateFilters(stakingConfig: StakingConfig):
         refund_filter["filterTree"]["childNodes"].append(addStakeProxyRefundFilter)
         unstakeProxyRefundFilter = {'nodeType': 'equals','fieldName': 'inputs.0.address','comparisonValue': stakingConfig.unstakeProxyContract.contract.toAddress().toString()}
         refund_filter["filterTree"]["childNodes"].append(unstakeProxyRefundFilter)
+        refund_filter["name"] = project + refund_filter["name"]
+        refund_filter["topics"][0] = project + refund_filter["topics"][0]
     res = requests.post('http://eo-api:8901/api/filter', json=refund_filter)
     if res.ok:
-        logging.info(res.json())
+        logging.debug(res.json())
         topics = topics + refund_filter['topics']
     
     return topics
 
 async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingState:
+    logging.info("Fetching current staking state...")
     result = StakingState(stakingConfig)
 
+    logging.info("Finding stake state box...")
     res = requests.get(f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byTokenId/{stakingConfig.stakeStateNFT}',timeout=120)
     if res.ok:
         result.stakeState = res.json()["items"][0]
-    logging.info(result.nextCycleTime())
+    logging.debug(result.nextCycleTime())
 
     await setTimeFilter(result)
 
+    logging.info("Finding emission box...")
     res = requests.get(f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byTokenId/{stakingConfig.emissionNFT}',timeout=120)
     if res.ok:
         result.emission = res.json()["items"][0]
 
+    logging.info("Finding stake pool box...")
     res = requests.get(f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byTokenId/{stakingConfig.stakePoolNFT}',timeout=120)
     if res.ok:
         result.stakePool = res.json()["items"][0]
 
+    logging.info("Finding stake boxes...")
     offset = 0
     limit = 100
     moreBoxes = True
@@ -127,55 +153,74 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
                 result.addStakeBox(box)
         offset += limit
 
+    logging.info("Finding incentive boxes...")
     offset = 0
     limit = 100
     moreBoxes = True
     while moreBoxes:
         res = requests.get(f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byAddress/{stakingConfig.stakingIncentiveContract.contract.toAddress().toString()}?offset={offset}&limit={limit}',timeout=120)
-        boxes = res.json()["items"]
-        moreBoxes = len(boxes) == limit
-        for box in boxes:
-            result.addIncentiveBox(box)
-        offset += limit
+        if res.ok:
+            boxes = res.json()["items"]
+            moreBoxes = len(boxes) == limit
+            for box in boxes:
+                result.addIncentiveBox(box)
+            offset += limit
+        else:
+            moreBoxes = False
 
+    logging.info("Finding stake proxy boxes...")
     offset = 0
     limit = 100
     moreBoxes = True
     while moreBoxes:
         res = requests.get(f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byAddress/{stakingConfig.stakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}',timeout=120)
-        boxes = res.json()["items"]
-        moreBoxes = len(boxes) == limit
-        for box in boxes:
-            result.addProxyBox(box)
-        offset += limit
+        if res.ok:
+            boxes = res.json()["items"]
+            moreBoxes = len(boxes) == limit
+            for box in boxes:
+                result.addProxyBox(box)
+            offset += limit
+        else:
+            moreBoxes = False
 
+    logging.info("Finding add stake proxy boxes...")
     offset = 0
     limit = 100
     moreBoxes = True
     while moreBoxes:
         res = requests.get(f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byAddress/{stakingConfig.addStakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}',timeout=120)
-        boxes = res.json()["items"]
-        moreBoxes = len(boxes) == limit
-        for box in boxes:
-            result.addProxyBox(box)
-        offset += limit
+        if res.ok:
+            boxes = res.json()["items"]
+            moreBoxes = len(boxes) == limit
+            for box in boxes:
+                result.addProxyBox(box)
+            offset += limit
+        else:
+            moreBoxes = False
 
+    logging.info("Finding unstake proxy boxes...")
     offset = 0
     limit = 100
     moreBoxes = True
     while moreBoxes:
         res = requests.get(f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byAddress/{stakingConfig.unstakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}',timeout=120)
-        boxes = res.json()["items"]
-        moreBoxes = len(boxes) == limit
-        for box in boxes:
-            result.addProxyBox(box)
-        offset += limit
+        if res.ok:
+            boxes = res.json()["items"]
+            moreBoxes = len(boxes) == limit
+            for box in boxes:
+                result.addProxyBox(box)
+            offset += limit
+        else:
+            moreBoxes = False
 
     return result
 
 async def setTimeFilter(stakingState: StakingState):
+    logging.info(f"Setting filter for next emission: {datetime.fromtimestamp(stakingState.nextCycleTime()/1000).isoformat()}")
     with open('staking/filters/block_emit_time.json') as f:
         block_time_filter = json.loads(f.read())
+        block_time_filter["name"] = project + block_time_filter["name"]
+        block_time_filter["topics"][0] = project + block_time_filter["topics"][0]
     block_time_filter["filterTree"]["comparisonValue"] = stakingState.nextCycleTime()
     res = requests.post('http://eo-api:8901/api/filter', json=block_time_filter)
 
@@ -208,16 +253,16 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
     try:
         unsignedTx = stakingState.emitTransaction(appKit,config['REWARD_ADDRESS'])
         if unsignedTx is not None:
-            txType = "im.paideia.staking.emit"
+            txType = f"{project}.staking.emit"
     except Exception as e:
         logging.error(e)
     if unsignedTx is None:
         try:
             unsignedTx = stakingState.compoundTX(appKit,config['REWARD_ADDRESS'])
             if unsignedTx is not None:
-                txType = "im.paideia.staking.compound"
+                txType = f"{project}.staking.compound"
         except Exception as e:
-            pass#logging.error(e)
+            logging.error(e)
     if unsignedTx is None:
         try:
             (txType, unsignedTx) = stakingState.proxyTransaction(appKit,config['REWARD_ADDRESS']) 
@@ -227,13 +272,14 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
         try:
             unsignedTx = stakingState.consolidateTransaction(appKit,config['REWARD_ADDRESS'])
             if unsignedTx is not None:
-                txType = "im.paideia.staking.consolidate"
+                txType = f"{project}.staking.consolidate"
                 logging.info("Submitting consolidate tx")
         except Exception as e:
             logging.error(e)
     if unsignedTx is not None:
         try:
-            if txType in ["im.paideia.staking.emit","im.paideia.staking.compound","im.paideia.staking.proxy.add"]:
+            signedTx = None
+            if txType in [f"{project}.staking.emit",f"{project}.staking.compound",f"{project}.staking.proxy.add"]:
                 signedTxJson = dummySign(ErgoAppKit.unsignedTxToJson(unsignedTx))
             else:
                 signedTx = appKit.signTransaction(unsignedTx)
@@ -241,7 +287,10 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
                 stakingState.newTx(signedTxJson)
             txInfo = {'type': txType, 'tx': signedTxJson}
             producer.send('ergo.submit_tx',value=txInfo)
-            logging.info(f"Submitting {txType} tx")
+            if signedTx is not None:
+                logging.info(f"Submitting {txType} tx, cost: {signedTx.getCost()}")
+            else:
+                logging.info(f"Submitting {txType} tx, cost: unknown")
         except Exception as e:
             logging.info(ErgoAppKit.unsignedTxToJson(unsignedTx))
             logging.error(e)
@@ -256,7 +305,7 @@ async def checkMempool(config):
     while True:
         await asyncio.sleep(240)
         try:
-            producer.send('im.paideia.staking.mempoolcheck',"{'dummy':1}")
+            producer.send(f'{project}.staking.mempoolcheck',"{'dummy':1}")
         except Exception as e:
             logging.error(e)
 
@@ -265,8 +314,7 @@ async def main():
         config = await getConfig()
         threading.Thread(target=asyncio.run, args=(checkMempool(config),)).start()
         appKit = ErgoAppKit(config['ERGO_NODE'],'mainnet',config['ERGO_EXPLORER'])
-
-        stakingConfig = PaideiaConfig(appKit)
+        stakingConfig = stakingConfigs[project](appKit)
         try:
             topics = await initiateFilters(stakingConfig)
         except Exception as e:
@@ -275,7 +323,7 @@ async def main():
         stakingState = await currentStakingState(config,stakingConfig)
         logging.info(stakingState._stakeBoxes)
         logging.info(stakingState)
-        consumer = KafkaConsumer(*topics,group_id='im.paideia.staking',bootstrap_servers=f"{config['KAFKA_HOST']}:{config['KAFKA_PORT']}",value_deserializer=lambda m: json.loads(m.decode('utf-8')))
+        consumer = KafkaConsumer(*topics,group_id=f'{project}.staking',bootstrap_servers=f"{config['KAFKA_HOST']}:{config['KAFKA_PORT']}",value_deserializer=lambda m: json.loads(m.decode('utf-8')))
         producer = None
         while producer is None:
             try:
@@ -286,16 +334,16 @@ async def main():
         for message in consumer:
             logging.info(message.topic)
             logging.info(message.value)
-            if message.topic == "im.paideia.staking.refund":
+            if message.topic == f"{project}.staking.refund":
                 tx = message.value
                 stakingState.newTx(tx)
-            if message.topic == "im.paideia.staking.proxy":
+            if message.topic == f"{project}.staking.proxy":
                 tx = message.value
                 stakingState.newTx(tx)
-            if message.topic == "im.paideia.staking.mempoolcheck":
+            if message.topic == f"{project}.staking.mempoolcheck":
                 logging.info("Checking mempool")
                 stakingState.mempool.validateMempool(config['ERGO_NODE'])
-            if message.topic == "im.paideia.staking.stake_state":
+            if message.topic == f"{project}.staking.stake_state":
                 tx = message.value
                 stakingState.newTx(tx)
                 if "globalIndex" in tx:
@@ -325,7 +373,7 @@ async def main():
                             else:
                                 logging.info("Unstake transaction")
                                 stakingState.removeStakeBox(tx["inputs"][1]["boxId"])
-            if message.topic == "im.paideia.staking.emission":
+            if message.topic == f"{project}.staking.emission":
                 tx = message.value
                 stakingState.newTx(tx)
                 if "globalIndex" in tx:
@@ -337,7 +385,7 @@ async def main():
                                 stakingState.addStakeBox(outp)
                         if outp["ergoTree"] == stakingConfig.stakingIncentiveContract._ergoTree.bytesHex():
                             stakingState.addIncentiveBox(outp)
-            if message.topic == "im.paideia.staking.incentive":
+            if message.topic == f"{project}.staking.incentive":
                 tx = message.value
                 stakingState.newTx(tx)
                 if "globalIndex" in tx:
@@ -345,7 +393,7 @@ async def main():
                         if outp["ergoTree"] == stakingConfig.stakingIncentiveContract._ergoTree.bytesHex():
                             stakingState.addIncentiveBox(outp)
                     logging.info("Funding or consolidation transaction")
-            if message.topic == "im.paideia.staking.emit_time":
+            if message.topic == f"{project}.staking.emit_time":
                 logging.info("Emission time")
             logging.info(stakingState)
             await makeTx(appKit,stakingState,config,producer)

@@ -1,3 +1,4 @@
+import os
 from time import time
 from typing import List
 import logging
@@ -17,6 +18,7 @@ class StakingState:
         self.mempool: Mempool = Mempool()
         self.stakingConfig = stakingConfig
         self._proxyBoxes = {}
+        self.project = os.getenv("PROJECT")
 
     def getR4(self,box):
         hexVal = ""
@@ -61,7 +63,7 @@ class StakingState:
 
     def getIncentiveBox(self, value: int):
         for box in list(self._incentiveBoxes.values()) + self.mempool.getUTXOsByTree(self.stakingConfig.stakingIncentiveContract._ergoTree.bytesHex()):
-            if not self.mempool.isSpent(box["boxId"]) and box["value"] > value + 100000:
+            if not self.mempool.isSpent(box["boxId"]) and box["value"] > value + 1000000:
                 return box
 
     def incentiveTotal(self):
@@ -139,14 +141,18 @@ class StakingState:
 
                 # every <numBoxes>, go ahead and submit tx
                 if len(stakeBoxes)>=50:
-                    logging.info("found 50")
+                    logging.debug("found 50")
                     break
             
             if len(stakeBoxes) == 0:
                 return
             
             txValue = int(self.stakingConfig.baseCompoundMinerFee+self.stakingConfig.baseCompoundReward + ((self.stakingConfig.variableCompoundMinerFee+self.stakingConfig.variableCompoundReward) * len(stakeBoxes)))
+
             incentiveBox = self.getIncentiveBox(txValue)
+
+            if incentiveBox is None:
+                raise Exception("Not enough incentive for compound")
             
             emissionInput = appKit.getBoxesById([self.emission["boxId"]])[0]
             stakeInputs = appKit.getBoxesById(stakeBoxes)
@@ -162,7 +168,13 @@ class StakingState:
             stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
             stakePoolInput = appKit.getBoxesById([self.stakePool["boxId"]])[0]
             emissionInput = appKit.getBoxesById([self.emission["boxId"]])[0]
-            incentiveInput = appKit.getBoxesById([self.getIncentiveBox(int(5e6))["boxId"]])[0]
+
+            incentiveBox = self.getIncentiveBox(int(5e6))
+
+            if incentiveBox is None:
+                raise Exception("Not enough incentive for emit")
+
+            incentiveInput = appKit.getBoxesById([incentiveBox["boxId"]])[0]
 
             emissionR4 = self.getR4(self.emission)
             if emissionR4.apply(2) > 0:
@@ -197,8 +209,8 @@ class StakingState:
                 tx.outputs = [userOutput]
                 tx.fee = int(1e6)
                 tx.changeAddress = rewardAddress
-                return ("im.paideia.staking.proxy.refund",tx.unsignedTx)
-            return ("im.paideia.staking.proxy.new",StakeTransaction(stakeStateInput,stakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
+                return (f"{self.project}.staking.proxy.refund",tx.unsignedTx)
+            return (f"{self.project}.staking.proxy.new",StakeTransaction(stakeStateInput,stakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
         proxy = self.getProxyBox(self.stakingConfig.addStakeProxyContract._ergoTree.bytesHex())
         if proxy is not None:
             stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
@@ -206,7 +218,7 @@ class StakingState:
             stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(addStakeProxyInput.getTokens()[0].getId().toString())["boxId"]])[0]
             addStakeProxyTx = AddStakeTransaction(stakeStateInput,stakeInput,addStakeProxyInput,self.stakingConfig,rewardAddress)
             logging.info(addStakeProxyTx.eip12)
-            return ("im.paideia.staking.proxy.add",addStakeProxyTx.unsignedTx)
+            return (f"{self.project}.staking.proxy.add",addStakeProxyTx.unsignedTx)
         proxy = self.getProxyBox(self.stakingConfig.unstakeProxyContract._ergoTree.bytesHex())
         if proxy is not None:
             stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
@@ -226,9 +238,9 @@ class StakingState:
                 tx.outputs = [userOutput]
                 tx.fee = int(1e6)
                 tx.changeAddress = rewardAddress
-                return ("im.paideia.staking.proxy.refund",tx.unsignedTx)
+                return (f"{self.project}.staking.proxy.refund",tx.unsignedTx)
             try:
-                return ("im.paideia.staking.proxy.remove",UnstakeTransaction(stakeStateInput,stakeInput,unstakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
+                return (f"{self.project}.staking.proxy.remove",UnstakeTransaction(stakeStateInput,stakeInput,unstakeProxyInput,self.stakingConfig,rewardAddress).unsignedTx)
             except java.lang.IllegalArgumentException:
                 logging.info(proxy)
                 userOutput = ErgoBox(
@@ -242,7 +254,7 @@ class StakingState:
                 tx.outputs = [userOutput]
                 tx.fee = int(1e6)
                 tx.changeAddress = rewardAddress
-                return ("im.paideia.staking.proxy.refund",tx.unsignedTx)
+                return (f"{self.project}.staking.proxy.refund",tx.unsignedTx)
 
         return (None, None)
 
@@ -255,7 +267,7 @@ class StakingState:
                 dustTotal += box["value"]
 
         if len(dustBoxes) >= 2:
-            logging.info(len(dustBoxes))
+            logging.info(f"Found {len(dustBoxes)} dustboxes")
             inputs = appKit.getBoxesById(dustBoxes)
 
             consolidationTx = ConsolidateDustTransaction(

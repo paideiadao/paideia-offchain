@@ -1,9 +1,9 @@
 {
-    "name": "im.paideia.staking.emit_time",
+    "name": ".staking.emit_time",
     "filterType": "block",
     "repeats": -1,
     "topics": [
-        "im.paideia.staking.emit_time"
+        ".staking.emit_time"
     ],
     "messageTemplate": "%block%",
     "filterTree": {

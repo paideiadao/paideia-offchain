@@ -1,9 +1,9 @@
 {
-    "name": "im.paideia.staking.incentive",
+    "name": ".staking.incentive",
     "filterType": "tx",
     "repeats": -1,
     "topics": [
-        "im.paideia.staking.incentive"
+        ".staking.incentive"
     ],
     "messageTemplate": "%tx%",
     "filterTree": {
