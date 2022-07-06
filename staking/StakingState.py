@@ -215,7 +215,22 @@ class StakingState:
         if proxy is not None:
             stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
             addStakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
-            stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(addStakeProxyInput.getTokens()[0].getId().toString())["boxId"]])[0]
+            try:
+                stakeInput = appKit.getBoxesById([self.getStakeBoxByKey(addStakeProxyInput.getTokens()[0].getId().toString())["boxId"]])[0]
+            except:
+                userOutput = ErgoBox(
+                    appKit = appKit,
+                    value = addStakeProxyInput.getValue()-int(1e6),
+                    contract = appKit.contractFromTree(appKit.treeFromBytes(bytes.fromhex(self.getRegisterHex(proxy,"R5")))),
+                    tokens={addStakeProxyInput.getTokens()[0].getId().toString(): addStakeProxyInput.getTokens()[0].getValue(),
+                        addStakeProxyInput.getTokens()[1].getId().toString(): addStakeProxyInput.getTokens()[1].getValue()}
+                ).outBox
+                tx = ErgoTransaction(appKit)
+                tx.inputs = [addStakeProxyInput]
+                tx.outputs = [userOutput]
+                tx.fee = int(1e6)
+                tx.changeAddress = rewardAddress
+                return (f"{self.project}.staking.proxy.refund",tx.unsignedTx)
             addStakeProxyTx = AddStakeTransaction(stakeStateInput,stakeInput,addStakeProxyInput,self.stakingConfig,rewardAddress)
             logging.info(addStakeProxyTx.eip12)
             return (f"{self.project}.staking.proxy.add",addStakeProxyTx.unsignedTx)
