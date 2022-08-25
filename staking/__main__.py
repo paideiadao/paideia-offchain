@@ -13,7 +13,7 @@ import threading
 import os
 
 from staking.StakingState import StakingState
-from paideia_contracts.contracts.staking import StakingConfig, PaideiaConfig, EGIOConfig
+from paideia_contracts.contracts.staking import StakingConfig, PaideiaConfig, EGIOConfig, ergopadv5testConfig, NETAConfig
 import java
 from org.ergoplatform.appkit import UnsignedTransaction, SignedTransaction
 from org.ergoplatform.appkit.impl import BlockchainContextImpl
@@ -35,7 +35,9 @@ project = os.getenv("PROJECT")
 
 stakingConfigs = {
     'im.paideia': PaideiaConfig,
-    'io.ergogames': EGIOConfig
+    'io.ergogames': EGIOConfig,
+    'im.paideia-testnet': ergopadv5testConfig,
+    'io.anetabtc': NETAConfig
 }
 
 async def getConfig():
@@ -270,7 +272,7 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
             logging.error(e)
     if unsignedTx is None:
         try:
-            unsignedTx = stakingState.consolidateTransaction(appKit,config['REWARD_ADDRESS'])
+            #unsignedTx = stakingState.consolidateTransaction(appKit,config['REWARD_ADDRESS'])
             if unsignedTx is not None:
                 txType = f"{project}.staking.consolidate"
                 logging.info("Submitting consolidate tx")
@@ -279,8 +281,10 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
     if unsignedTx is not None:
         try:
             signedTx = None
-            if txType in [f"{project}.staking.emit",f"{project}.staking.compound",f"{project}.staking.proxy.add"]:
-                signedTxJson = dummySign(ErgoAppKit.unsignedTxToJson(unsignedTx))
+            if txType in [f"{project}.staking.emit",
+                f"{project}.staking.compound",
+                f"{project}.staking.proxy.add"]:
+                signedTxJson = dummySign(ErgoAppKit.unsignedTxToJson(unsignedTx))             
             else:
                 signedTx = appKit.signTransaction(unsignedTx)
                 signedTxJson = json.loads(signedTx.toJson(False))
@@ -291,6 +295,8 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
                 logging.info(f"Submitting {txType} tx, cost: {signedTx.getCost()}")
             else:
                 logging.info(f"Submitting {txType} tx, cost: unknown")
+                #signedTxJson["id"] = "3"
+                #stakingState.newTx(signedTxJson)
         except Exception as e:
             logging.info(ErgoAppKit.unsignedTxToJson(unsignedTx))
             logging.error(e)
@@ -313,7 +319,7 @@ async def main():
     try:
         config = await getConfig()
         threading.Thread(target=asyncio.run, args=(checkMempool(config),)).start()
-        appKit = ErgoAppKit(config['ERGO_NODE'],'mainnet',config['ERGO_EXPLORER'])
+        appKit = ErgoAppKit(config['ERGO_NODE'],'testnet',config['ERGO_EXPLORER'])
         stakingConfig = stakingConfigs[project](appKit)
         try:
             topics = await initiateFilters(stakingConfig)
