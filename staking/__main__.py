@@ -319,7 +319,7 @@ async def main():
     try:
         config = await getConfig()
         threading.Thread(target=asyncio.run, args=(checkMempool(config),)).start()
-        appKit = ErgoAppKit(config['ERGO_NODE'],'testnet',config['ERGO_EXPLORER'])
+        appKit = ErgoAppKit(config['ERGO_NODE'],'mainnet',config['ERGO_EXPLORER'])
         stakingConfig = stakingConfigs[project](appKit)
         try:
             topics = await initiateFilters(stakingConfig)
