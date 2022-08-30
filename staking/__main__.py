@@ -272,7 +272,7 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
             logging.error(e)
     if unsignedTx is None:
         try:
-            #unsignedTx = stakingState.consolidateTransaction(appKit,config['REWARD_ADDRESS'])
+            unsignedTx = stakingState.consolidateTransaction(appKit,config['REWARD_ADDRESS'])
             if unsignedTx is not None:
                 txType = f"{project}.staking.consolidate"
                 logging.info("Submitting consolidate tx")

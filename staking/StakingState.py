@@ -75,7 +75,7 @@ class StakingState:
 
     def addProxyBox(self, proxyBox) -> bool:
         mempool = "settlementHeight" not in proxyBox
-        if not mempool:
+        if not mempool and "R4" in proxyBox["additionalRegisters"]:
             self._proxyBoxes[proxyBox["boxId"]] = proxyBox
             return True
         return False
@@ -86,9 +86,8 @@ class StakingState:
     def getProxyBox(self, proxyTree: str):
         proxyBoxList = list(self._proxyBoxes.values()) + self.mempool.getUTXOsByTree(proxyTree)
         if proxyBoxList is not None:
-            proxyBoxList.reverse()
             for box in proxyBoxList:
-                if not self.mempool.isSpent(box["boxId"]) and box["ergoTree"] == proxyTree:
+                if not self.mempool.isSpent(box["boxId"]) and box["ergoTree"] == proxyTree and "R4" in box["additionalRegisters"]:
                     return box
     
     def getProxyBoxById(self, boxId):
