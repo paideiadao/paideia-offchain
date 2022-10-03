@@ -327,7 +327,6 @@ async def main():
             logging.error(e)
             return
         stakingState = await currentStakingState(config,stakingConfig)
-        logging.info(stakingState._stakeBoxes)
         logging.info(stakingState)
         consumer = KafkaConsumer(*topics,session_timeout_ms=60000,group_id=f'{project}.staking',bootstrap_servers=f"{config['KAFKA_HOST']}:{config['KAFKA_PORT']}",value_deserializer=lambda m: json.loads(m.decode('utf-8')))
         producer = None
