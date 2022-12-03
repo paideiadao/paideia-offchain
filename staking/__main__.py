@@ -253,7 +253,8 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
     unsignedTx = None
     txType = ""
     try:
-        unsignedTx = stakingState.emitTransaction(appKit,config['REWARD_ADDRESS'])
+        if project!='im.paideia': 
+            unsignedTx = stakingState.emitTransaction(appKit,config['REWARD_ADDRESS'])
         if unsignedTx is not None:
             txType = f"{project}.staking.emit"
     except Exception as e:
