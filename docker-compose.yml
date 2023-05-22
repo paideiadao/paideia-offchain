@@ -1,19 +1,19 @@
 version: '3'
 services:
   staking:
-      env_file: .env
-      networks:
-        - ergo-offchain-execution_net
-      build:
-        context: .
-        dockerfile: ./staking/Dockerfile
-      volumes:
-        - ./:/code
-      entrypoint: watchmedo auto-restart --recursive --pattern="*.py" --directory="./staking" -- python -m staking
-      deploy:
-        resources:
-          limits:
-            memory: 512M
+    env_file: .env
+    networks:
+      - ergo-offchain-execution_net
+    build:
+      context: .
+      dockerfile: ./staking/Dockerfile
+    volumes:
+      - ./:/code
+    entrypoint: watchmedo auto-restart --recursive --pattern="*.py" --directory="./staking" -- python -m staking
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 networks:
   ergo-offchain-execution_net:
     external: true

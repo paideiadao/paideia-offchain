@@ -13,7 +13,7 @@ import threading
 import os
 
 from staking.StakingState import StakingState
-from paideia_contracts.contracts.staking import StakingConfig, PaideiaConfig, EGIOConfig, ergopadv5testConfig, NETAConfig
+from paideia_contracts.contracts.staking import StakingConfig, PaideiaConfig, EGIOConfig, ergopadv5testConfig, NETAConfig, AHTConfig
 import java
 from org.ergoplatform.appkit import UnsignedTransaction, SignedTransaction
 from org.ergoplatform.appkit.impl import BlockchainContextImpl
@@ -37,7 +37,8 @@ stakingConfigs = {
     'im.paideia': PaideiaConfig,
     'io.ergogames': EGIOConfig,
     'im.paideia-testnet': ergopadv5testConfig,
-    'io.anetabtc': NETAConfig
+    'io.anetabtc': NETAConfig,
+    'org.ergoauctions': AHTConfig
 }
 
 async def getConfig():
