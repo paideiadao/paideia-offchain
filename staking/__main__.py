@@ -158,6 +158,8 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
         for box in boxes:
             if box["assets"][0]["tokenId"] == stakingConfig.stakeTokenId:
                 result.addStakeBox(box)
+            else:
+                logging.warning(f"{box['assets'][0]['tokenId']} did not match {stakingConfig.stakedTokenId}")
         offset += limit
 
     logging.info("Finding incentive boxes...")
