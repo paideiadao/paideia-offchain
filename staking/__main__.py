@@ -145,11 +145,15 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
         success = False
         while not success:
             try:
-                res = requests.get(f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byTokenId/{stakingConfig.stakeTokenId}?offset={offset}&limit={limit}',timeout=120)
-                success = True
-            except:
+                req = f'{config["ERGO_NODE"]}/blockchain/box/unspent/byAddress?offset={offset}&limit={limit}&sortDirection=asc'
+                logging.debug(req)
+                res = requests.post(req, data=stakingConfig.stakeContract.contract.toAddress().toString(), timeout=120)
+                if res.json():
+                    success = True
+            except Exception as e:
+                logging.error(f'currentStakingState::{e}')
                 pass
-        boxes = res.json()["items"]
+        boxes = res.json()
         moreBoxes = len(boxes) == limit
         for box in boxes:
             if box["assets"][0]["tokenId"] == stakingConfig.stakeTokenId:
@@ -254,7 +258,7 @@ async def makeTx(appKit: ErgoAppKit, stakingState: StakingState, config, produce
     unsignedTx = None
     txType = ""
     try:
-        unsignedTx = stakingState.emitTransaction(appKit,config['REWARD_ADDRESS'])
+        #unsignedTx = stakingState.emitTransaction(appKit,config['REWARD_ADDRESS'])
         if unsignedTx is not None:
             txType = f"{project}.staking.emit"
     except Exception as e:
