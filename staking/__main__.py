@@ -198,6 +198,9 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
             try:
                 req = f'{config["ERGO_NODE"]}/blockchain/box/unspent/byAddress?offset={offset}&limit={limit}&sortDirection=asc'
                 logging.debug(req)
+                logging.debug(
+                    stakingConfig.stakeContract.contract.toAddress().toString()
+                )
                 res = requests.post(
                     req,
                     data=stakingConfig.stakeContract.contract.toAddress().toString(),
