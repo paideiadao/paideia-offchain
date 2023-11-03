@@ -203,15 +203,12 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
                     data=stakingConfig.stakeContract.contract.toAddress().toString(),
                     timeout=120,
                 )
-                logging.debug(res)
-                if res.json():
+                if res.ok:
                     success = True
             except Exception as e:
                 logging.error(f"currentStakingState::{e}")
                 pass
         boxes = res.json()
-        logging.debug(boxes)
-        logging.debug(len(boxes))
         moreBoxes = len(boxes) == limit
         for box in boxes:
             if box["assets"][0]["tokenId"] == stakingConfig.stakeTokenId:
