@@ -198,9 +198,6 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
             try:
                 req = f'{config["ERGO_NODE"]}/blockchain/box/unspent/byAddress?offset={offset}&limit={limit}&sortDirection=asc'
                 logging.debug(req)
-                logging.debug(
-                    stakingConfig.stakeContract.contract.toAddress().toString()
-                )
                 res = requests.post(
                     req,
                     data=stakingConfig.stakeContract.contract.toAddress().toString(),
@@ -212,6 +209,8 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
                 logging.error(f"currentStakingState::{e}")
                 pass
         boxes = res.json()
+        logging.debug(boxes)
+        logging.debug(len(boxes))
         moreBoxes = len(boxes) == limit
         for box in boxes:
             if box["assets"][0]["tokenId"] == stakingConfig.stakeTokenId:
