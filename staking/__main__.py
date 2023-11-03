@@ -203,6 +203,7 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
                     data=stakingConfig.stakeContract.contract.toAddress().toString(),
                     timeout=120,
                 )
+                logging.debug(res)
                 if res.json():
                     success = True
             except Exception as e:
