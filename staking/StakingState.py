@@ -343,9 +343,9 @@ class StakingState:
             self.stakingConfig.unstakeProxyContract._ergoTree.bytesHex()
         )
         if proxy is not None:
+            unstakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
             try:
                 stakeStateInput = appKit.getBoxesById([self.stakeState["boxId"]])[0]
-                unstakeProxyInput = appKit.getBoxesById([proxy["boxId"]])[0]
                 stakeInput = appKit.getBoxesById(
                     [
                         self.getStakeBoxByKey(
