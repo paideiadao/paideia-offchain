@@ -9,7 +9,6 @@ services:
       dockerfile: ./staking/Dockerfile
     volumes:
       - ./:/code
-    entrypoint: python -m staking
     restart: unless-stopped
     deploy:
       resources:
