@@ -394,6 +394,8 @@ async def makeTx(
 
 async def checkMempool(config):
     producer = None
+    start_time = time.time()
+    current_time = start_time
     while producer is None:
         try:
             producer = KafkaProducer(
@@ -402,12 +404,17 @@ async def checkMempool(config):
             )
         except:
             await asyncio.sleep(2)
-    while True:
+    while current_time - start_time < 3600:
         await asyncio.sleep(240)
+        current_time = time.time()
         try:
             producer.send(f"{project}.staking.mempoolcheck", "{'dummy':1}")
         except Exception as e:
             logging.error(e)
+    try:
+        producer.send(f"{project}.staking.shutdown", "{'dummy':1}")
+    except Exception as e:
+        logging.error(e)
 
 
 async def main():
@@ -443,6 +450,9 @@ async def main():
         for message in consumer:
             logging.info(message.topic)
             logging.info(message.value)
+            if message.topic == f"{project}.staking.shutdown":
+                logging.info("Shutting down")
+                return
             if message.topic == f"{project}.staking.refund":
                 tx = message.value
                 stakingState.newTx(tx)
