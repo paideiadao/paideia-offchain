@@ -459,7 +459,7 @@ async def main():
                 logging.info("Shutting down")
                 consumer.close()
                 os.kill(1, signal.SIGTERM)
-                return
+                exit()
             if message.topic == f"{project}.staking.refund":
                 tx = message.value
                 stakingState.newTx(tx)
