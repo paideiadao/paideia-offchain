@@ -9,7 +9,8 @@ services:
       dockerfile: ./staking/Dockerfile
     volumes:
       - ./:/code
-    entrypoint: watchmedo auto-restart --recursive --pattern="*.py" --directory="./staking" -- python -m staking
+    entrypoint: python -m staking
+    restart: unless-stopped
     deploy:
       resources:
         limits:
