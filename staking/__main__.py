@@ -456,9 +456,11 @@ async def main():
             logging.info(message.topic)
             logging.info(message.value)
             if message.topic == f"{project}.staking.shutdown":
-                logging.info("Shutting down")
+                logging.info("Shutting down consumer")
                 consumer.close()
+                logging.info("Killing parent")
                 os.kill(os.getppid(), signal.SIGTERM)
+                logging.info("Exiting process")
                 exit()
             if message.topic == f"{project}.staking.refund":
                 tx = message.value
