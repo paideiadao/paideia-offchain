@@ -457,6 +457,7 @@ async def main():
             logging.info(message.value)
             if message.topic == f"{project}.staking.shutdown":
                 logging.info("Shutting down")
+                consumer.close()
                 os.kill(1, signal.SIGTERM)
                 return
             if message.topic == f"{project}.staking.refund":
