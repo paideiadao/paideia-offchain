@@ -3,6 +3,7 @@ from datetime import datetime
 from distutils import extension
 import json
 from pydoc import text
+import signal
 import sys
 import time
 from ergo_python_appkit.appkit import ErgoAppKit
@@ -456,7 +457,7 @@ async def main():
             logging.info(message.value)
             if message.topic == f"{project}.staking.shutdown":
                 logging.info("Shutting down")
-                return
+                os.kill(os.getppid(), signal.SIGTERM)
             if message.topic == f"{project}.staking.refund":
                 tx = message.value
                 stakingState.newTx(tx)
