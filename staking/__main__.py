@@ -62,7 +62,11 @@ async def getConfig():
 
 async def initiateFilters(stakingConfig: StakingConfig):
     logging.info("Initiating filters...")
-    topics = [f"{project}.staking.emit_time", f"{project}.staking.mempoolcheck"]
+    topics = [
+        f"{project}.staking.emit_time",
+        f"{project}.staking.mempoolcheck",
+        f"{project}.staking.shutdown",
+    ]
 
     with open("staking/filters/tx_stake_state.json") as f:
         stake_state_filter = json.loads(f.read())
