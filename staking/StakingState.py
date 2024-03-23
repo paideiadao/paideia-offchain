@@ -53,7 +53,7 @@ class StakingState:
             )
             if r5 in self._stakeBoxes:
                 if stakeBox.get(
-                    "settlementHeight", default=stakeBox["inclusionHeight"]
+                    "settlementHeight", stakeBox["inclusionHeight"]
                 ) <= self._stakeBoxes[r5].get(
                     "settlementHeight", default=self._stakeBoxes[r5]["inclusionHeight"]
                 ):
