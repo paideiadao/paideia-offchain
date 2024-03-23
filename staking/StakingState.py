@@ -52,7 +52,9 @@ class StakingState:
                 else stakeBox["additionalRegisters"]["R5"][4:]
             )
             if r5 in self._stakeBoxes:
-                if stakeBox["settlementHeight"] <= self._stakeBoxes[r5].get(
+                if stakeBox.get(
+                    ["settlementHeight"], default=stakeBox["inclusionHeight"]
+                ) <= self._stakeBoxes[r5].get(
                     "settlementHeight", default=self._stakeBoxes[r5]["inclusionHeight"]
                 ):
                     return False
