@@ -14,4 +14,4 @@ RUN apt-get update \
 RUN pip install --upgrade pip
 RUN pip install -r ./staking/requirements.txt
 
-ENTRYPOINT python -m staking
+ENTRYPOINT python main.py
