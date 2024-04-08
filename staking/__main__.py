@@ -548,6 +548,8 @@ async def main():
             await makeTx(appKit, stakingState, config, producer)
     except Exception as e:
         logging.error(e)
+        return 1
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
