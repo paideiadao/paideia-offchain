@@ -426,7 +426,10 @@ async def checkMempool(config):
 async def main():
     try:
         config = await getConfig()
-        threading.Thread(target=asyncio.run, args=(checkMempool(config),)).start()
+        mempoolThread = threading.Thread(
+            target=asyncio.run, args=(checkMempool(config),)
+        )
+        mempoolThread.start()
         appKit = ErgoAppKit(config["ERGO_NODE"], "mainnet", config["ERGO_EXPLORER"])
         stakingConfig = stakingConfigs[project](appKit)
         try:
@@ -443,6 +446,7 @@ async def main():
             bootstrap_servers=f"{config['KAFKA_HOST']}:{config['KAFKA_PORT']}",
             value_deserializer=lambda m: json.loads(m.decode("utf-8")),
         )
+        consumer.seek_to_end()
         producer = None
         while producer is None:
             try:
