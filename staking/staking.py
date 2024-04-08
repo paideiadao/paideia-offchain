@@ -445,7 +445,7 @@ async def main():
             group_id=f"{project}.staking.{time.time()}",
             bootstrap_servers=f"{config['KAFKA_HOST']}:{config['KAFKA_PORT']}",
             value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-            auto_commit=False,
+            enable_auto_commit=False,
         )
         producer = None
         while producer is None:
