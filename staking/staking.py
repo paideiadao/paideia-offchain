@@ -8,6 +8,7 @@ import sys
 import time
 from ergo_python_appkit.appkit import ErgoAppKit
 import logging
+import jpype
 import requests
 from kafka import KafkaConsumer, KafkaProducer
 import threading
@@ -458,6 +459,8 @@ async def main():
             if message.topic == f"{project}.staking.shutdown":
                 logging.info("Shutting down consumer")
                 consumer.close()
+                logging.info("Shutting down JVM")
+                jpype.shutdownJVM()
                 logging.info("Killing parent")
                 os.kill(os.getppid(), signal.SIGTERM)
                 logging.info("Exiting process")
