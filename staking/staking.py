@@ -442,11 +442,11 @@ async def main():
         consumer = KafkaConsumer(
             *topics,
             session_timeout_ms=60000,
-            group_id=f"{project}.staking",
+            group_id=f"{project}.staking.{time.time()}",
             bootstrap_servers=f"{config['KAFKA_HOST']}:{config['KAFKA_PORT']}",
             value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+            auto_commit=False,
         )
-        consumer.seek_to_end()
         producer = None
         while producer is None:
             try:
