@@ -461,7 +461,7 @@ async def main():
                 logging.info("Killing parent")
                 os.kill(os.getppid(), signal.SIGTERM)
                 logging.info("Exiting process")
-                return
+                return 1
             if message.topic == f"{project}.staking.refund":
                 tx = message.value
                 stakingState.newTx(tx)
