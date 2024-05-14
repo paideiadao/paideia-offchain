@@ -214,7 +214,7 @@ class StakingState:
             stakePoolInput = appKit.getBoxesById([self.stakePool["boxId"]])[0]
             emissionInput = appKit.getBoxesById([self.emission["boxId"]])[0]
 
-            stakePoolBox = StakePoolBox.fromInputBox(stakePoolInput)
+            stakePoolBox = StakePoolBox.fromInputBox(stakePoolInput, self.stakingConfig.stakePoolContract)
 
             if stakePoolBox.remaining <= stakePoolBox.emissionAmount:
                 raise Exception("Not enough tokens in stakepool for emission")
