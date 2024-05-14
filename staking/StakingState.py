@@ -15,6 +15,7 @@ from paideia_contracts.contracts.staking import (
     StakeTransaction,
     UnstakeTransaction,
     ConsolidateDustTransaction,
+    StakePoolBox
 )
 
 import java.lang.IllegalArgumentException
