@@ -169,30 +169,30 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
 
     logging.info("Finding stake state box...")
     res = requests.get(
-        f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byTokenId/{stakingConfig.stakeStateNFT}',
+        f'{config["ERGO_NODE"]}/blockchain/box/unspent/byTokenId/{stakingConfig.stakeStateNFT}',
         timeout=120,
     )
     if res.ok:
-        result.stakeState = res.json()["items"][0]
+        result.stakeState = res.json()[0]
     logging.debug(result.nextCycleTime())
 
     await setTimeFilter(result)
 
     logging.info("Finding emission box...")
     res = requests.get(
-        f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byTokenId/{stakingConfig.emissionNFT}',
+        f'{config["ERGO_NODE"]}/blockchain/box/unspent/byTokenId/{stakingConfig.emissionNFT}',
         timeout=120,
     )
     if res.ok:
-        result.emission = res.json()["items"][0]
+        result.emission = res.json()[0]
 
     logging.info("Finding stake pool box...")
     res = requests.get(
-        f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byTokenId/{stakingConfig.stakePoolNFT}',
+        f'{config["ERGO_NODE"]}/blockchain/box/unspent/byTokenId/{stakingConfig.stakePoolNFT}',
         timeout=120,
     )
     if res.ok:
-        result.stakePool = res.json()["items"][0]
+        result.stakePool = res.json()[0]
 
     logging.info("Finding stake boxes...")
     offset = 0
@@ -231,11 +231,11 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
     moreBoxes = True
     while moreBoxes:
         res = requests.get(
-            f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byAddress/{stakingConfig.stakingIncentiveContract.contract.toAddress().toString()}?offset={offset}&limit={limit}',
+            f'{config["ERGO_NODE"]}/blockchain/box/unspent/byAddress/{stakingConfig.stakingIncentiveContract.contract.toAddress().toString()}?offset={offset}&limit={limit}&sortDirection=asc',
             timeout=120,
         )
         if res.ok:
-            boxes = res.json()["items"]
+            boxes = res.json()
             moreBoxes = len(boxes) == limit
             for box in boxes:
                 result.addIncentiveBox(box)
@@ -249,11 +249,11 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
     moreBoxes = True
     while moreBoxes:
         res = requests.get(
-            f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byAddress/{stakingConfig.stakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}',
+            f'{config["ERGO_NODE"]}/blockchain/box/unspent/byAddress/{stakingConfig.stakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}&sortDirection=asc',
             timeout=120,
         )
         if res.ok:
-            boxes = res.json()["items"]
+            boxes = res.json()
             moreBoxes = len(boxes) == limit
             for box in boxes:
                 result.addProxyBox(box)
@@ -267,11 +267,11 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
     moreBoxes = True
     while moreBoxes:
         res = requests.get(
-            f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byAddress/{stakingConfig.addStakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}',
+            f'{config["ERGO_NODE"]}/blockchain/box/unspent/byAddress/{stakingConfig.addStakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}&sortDirection=asc',
             timeout=120,
         )
         if res.ok:
-            boxes = res.json()["items"]
+            boxes = res.json()
             moreBoxes = len(boxes) == limit
             for box in boxes:
                 result.addProxyBox(box)
@@ -285,11 +285,11 @@ async def currentStakingState(config, stakingConfig: StakingConfig) -> StakingSt
     moreBoxes = True
     while moreBoxes:
         res = requests.get(
-            f'{config["ERGO_EXPLORER"]}/api/v1/boxes/unspent/byAddress/{stakingConfig.unstakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}',
+            f'{config["ERGO_NODE"]}/blockchain/box/unspent/byAddress/{stakingConfig.unstakeProxyContract.contract.toAddress().toString()}?offset={offset}&limit={limit}&sortDirection=asc',
             timeout=120,
         )
         if res.ok:
-            boxes = res.json()["items"]
+            boxes = res.json()
             moreBoxes = len(boxes) == limit
             for box in boxes:
                 result.addProxyBox(box)

@@ -30,11 +30,7 @@ class StakingState:
         self.project = os.getenv("PROJECT")
 
     def getR4(self, box):
-        hexVal = ""
-        if "serializedValue" in box["additionalRegisters"]["R4"]:
-            hexVal = box["additionalRegisters"]["R4"]["serializedValue"]
-        else:
-            hexVal = box["additionalRegisters"]["R4"]
+        hexVal = box["additionalRegisters"]["R4"]
         return ErgoValue.fromHex(hexVal).getValue()
 
     def nextCycleTime(self):
@@ -42,21 +38,11 @@ class StakingState:
         return r4.apply(3) + r4.apply(4)
 
     def addStakeBox(self, stakeBox) -> bool:
-        mempool = (
-            "settlementHeight" not in stakeBox and "inclusionHeight" not in stakeBox
-        )
+        mempool = "inclusionHeight" not in stakeBox
         if not mempool:
-            r5 = (
-                stakeBox["additionalRegisters"]["R5"]["serializedValue"][4:]
-                if "serializedValue" in stakeBox["additionalRegisters"]["R5"]
-                else stakeBox["additionalRegisters"]["R5"][4:]
-            )
+            r5 = stakeBox["additionalRegisters"]["R5"][4:]
             if r5 in self._stakeBoxes:
-                if stakeBox.get(
-                    "settlementHeight", stakeBox["inclusionHeight"]
-                ) <= self._stakeBoxes[r5].get(
-                    "settlementHeight", self._stakeBoxes[r5]["inclusionHeight"]
-                ):
+                if stakeBox["inclusionHeight"] <= self._stakeBoxes[r5]["inclusionHeight"]:
                     return False
             self._stakeBoxes[r5] = stakeBox
             return True
@@ -72,7 +58,7 @@ class StakingState:
             self._stakeBoxes.pop(keyToRemove, None)
 
     def addIncentiveBox(self, incentiveBox) -> bool:
-        mempool = "settlementHeight" not in incentiveBox
+        mempool = "inclusionHeight" not in incentiveBox
         if not mempool and incentiveBox["spentTransactionId"] is None:
             self._incentiveBoxes[incentiveBox["boxId"]] = incentiveBox
             return True
@@ -101,7 +87,7 @@ class StakingState:
         return total
 
     def addProxyBox(self, proxyBox) -> bool:
-        mempool = "settlementHeight" not in proxyBox
+        mempool = "inclusionHeight" not in proxyBox
         if not mempool and "R4" in proxyBox["additionalRegisters"]:
             self._proxyBoxes[proxyBox["boxId"]] = proxyBox
             return True
@@ -250,11 +236,7 @@ class StakingState:
         return self._stakeBoxes[stakeKey]
 
     def getRegisterHex(self, box, register):
-        hexVal = ""
-        if "serializedValue" in box["additionalRegisters"][register]:
-            hexVal = box["additionalRegisters"][register]["serializedValue"][4:]
-        else:
-            hexVal = box["additionalRegisters"][register][4:]
+        hexVal = box["additionalRegisters"][register][4:]
         return hexVal
 
     def proxyTransaction(self, appKit: ErgoAppKit, rewardAddress: str):
