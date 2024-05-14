@@ -405,7 +405,7 @@ class StakingState:
 
     @stakeState.setter
     def stakeState(self, value):
-        if "settlementHeight" in value and value["spentTransactionId"] is None:
+        if "inclusionHeight" in value and value["spentTransactionId"] is None:
             self._stakeState = value
 
     @property
@@ -416,7 +416,7 @@ class StakingState:
 
     @emission.setter
     def emission(self, value):
-        if "settlementHeight" in value and value["spentTransactionId"] is None:
+        if "inclusionHeight" in value and value["spentTransactionId"] is None:
             self._emission = value
 
     @property
@@ -427,7 +427,7 @@ class StakingState:
 
     @stakePool.setter
     def stakePool(self, value):
-        if "settlementHeight" in value and value["spentTransactionId"] is None:
+        if "inclusionHeight" in value and value["spentTransactionId"] is None:
             self._stakePool = value
 
     @property
